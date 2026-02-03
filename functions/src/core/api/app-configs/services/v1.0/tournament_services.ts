@@ -128,6 +128,7 @@ class TournamentService {
       end_date: Timestamp;
       sport: string;
       tournament_type: TournamentType;
+      number_of_weeks?: number;
     },
     user: { uid: string }
   ): Promise<string> {

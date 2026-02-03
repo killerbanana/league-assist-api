@@ -1,6 +1,6 @@
 import { Timestamp } from "firebase-admin/firestore";
 import { Role } from "src/core/enums/Roles";
-export type TournamentType = "full_tournament" | "showcase_tournament" | "bracket_only_tournament" | "quick_tournament";
+export type TournamentType = "full_tournament" | "showcase_tournament" | "bracket_only_tournament" | "quick_tournament" | "league";
 
 export interface Tournament {
   id?: string;
@@ -18,6 +18,7 @@ export interface Tournament {
   updated_at?: Timestamp | null;
   user_id?: string;
   time_zone?: string;
+  number_of_weeks?: number;
 }
 
 export const tournamentConverter = {
@@ -37,6 +38,7 @@ export const tournamentConverter = {
       staff_uids: tournament.staff_uids,
       user_id: tournament.user_id || null,
       time_zone: tournament.time_zone || "+08:00",
+      number_of_weeks: tournament.number_of_weeks || null,
     };
   },
 
@@ -57,6 +59,7 @@ export const tournamentConverter = {
       tournament_type: data.tournament_type,
       staff_uids: data.staff_uids,
       time_zone: data.time_zone,
+      number_of_weeks: data.number_of_weeks ?? null,
     };
   },
 };

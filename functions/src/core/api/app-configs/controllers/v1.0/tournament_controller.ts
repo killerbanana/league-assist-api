@@ -97,12 +97,30 @@ class TournamentController {
         });
       }
 
-      const { title, location, start_date, end_date, sport, tournament_type } = req.body;
+      const { title, location, start_date, end_date, sport, tournament_type, number_of_weeks } = req.body;
 
-      if (!title || !location || !start_date || !end_date || !sport) {
+      if (!title || !location || !start_date || !sport) {
         return res.status(HttpStatusCode.BAD_REQUEST).json({
           status: HttpStatusCode.BAD_REQUEST,
-          message: "Missing required fields: title, location, start_date, end_date, sport.",
+          message: "Missing required fields: title, location, start_date, sport.",
+        });
+      }
+
+      let finalEndDateTimestamp: Timestamp;
+      const startTimestamp = parseToTimestamp(start_date);
+
+      if (end_date) {
+        finalEndDateTimestamp = parseToTimestamp(end_date);
+      } else if (tournament_type === "league" && number_of_weeks) {
+        const startDateObj = startTimestamp.toDate();
+        const weeks = parseInt(number_of_weeks);
+        const endDateObj = new Date(startDateObj);
+        endDateObj.setDate(startDateObj.getDate() + weeks * 7);
+        finalEndDateTimestamp = Timestamp.fromDate(endDateObj);
+      } else {
+        return res.status(HttpStatusCode.BAD_REQUEST).json({
+          status: HttpStatusCode.BAD_REQUEST,
+          message: "Missing required fields: end_date (or number_of_weeks for leagues).",
         });
       }
 
@@ -111,10 +129,11 @@ class TournamentController {
         {
           title,
           location,
-          start_date: parseToTimestamp(start_date),
-          end_date: parseToTimestamp(end_date),
+          start_date: startTimestamp,
+          end_date: finalEndDateTimestamp,
           sport,
           tournament_type,
+          number_of_weeks: number_of_weeks ? parseInt(number_of_weeks) : undefined,
         },
         user
       );
