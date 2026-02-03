@@ -1,32 +1,75 @@
-/**
- * Import function triggers from their respective submodules:
- *
- * import {onCall} from "firebase-functions/v2/https";
- * import {onDocumentWritten} from "firebase-functions/v2/firestore";
- *
- * See a full list of supported triggers at https://firebase.google.com/docs/functions
- */
+import dotenv from "dotenv";
+import * as admin from "firebase-admin";
+import * as firebaseFunctions from "firebase-functions/v1";
+import * as ModuleAlias from "module-alias";
+import { initializeApp as initializeClientApp } from "firebase/app";
 
-import {setGlobalOptions} from "firebase-functions";
-import {onRequest} from "firebase-functions/https";
-import * as logger from "firebase-functions/logger";
+const path = require("path");
+const fs = require("fs");
 
-// Start writing functions
-// https://firebase.google.com/docs/functions/typescript
+let projectRoot = __dirname;
+while (!fs.existsSync(path.join(projectRoot, "package.json"))) {
+    projectRoot = path.dirname(projectRoot);
+}
 
-// For cost control, you can set the maximum number of containers that can be
-// running at the same time. This helps mitigate the impact of unexpected
-// traffic spikes by instead downgrading performance. This limit is a
-// per-function limit. You can override the limit for each function using the
-// `maxInstances` option in the function's options, e.g.
-// `onRequest({ maxInstances: 5 }, (req, res) => { ... })`.
-// NOTE: setGlobalOptions does not apply to functions using the v1 API. V1
-// functions should each use functions.runWith({ maxInstances: 10 }) instead.
-// In the v1 API, each function can only serve one request per container, so
-// this will be the maximum concurrent request count.
-setGlobalOptions({ maxInstances: 10 });
+const isEmulator = process.env.FUNCTIONS_EMULATOR === "true";
+let shellEnv = process.env.ENVIRONMENT && process.env.ENVIRONMENT.trim();
 
-// export const helloWorld = onRequest((request, response) => {
-//   logger.info("Hello logs!", {structuredData: true});
-//   response.send("Hello from Firebase!");
-// });
+// Force production environment if running in emulator with production project ID
+// This overrides "local" environment that might be loaded from .env.local by Firebase CLI
+if (isEmulator && process.env.GCLOUD_PROJECT === "vision2creation") {
+    shellEnv = "production";
+}
+
+if (!shellEnv && !isEmulator && process.env.GCLOUD_PROJECT === "tourney-assist-ai") {
+    shellEnv = "dev";
+}
+
+const searchOrder = shellEnv ? [`.env.${shellEnv}`] : (isEmulator ? [".env.local", ".env"] : [".env.production", ".env"]);
+const envFileName = searchOrder.find(f => fs.existsSync(path.join(projectRoot, f))) || ".env";
+const envPath = path.join(projectRoot, envFileName);
+
+dotenv.config({ path: envPath, override: true  });
+
+console.log(`[Startup] Loading config from: ${envPath}`);
+console.log(`[Startup] Target Project ID: ${process.env.ADMIN_PROJECT_ID}`);
+
+if (!admin.apps.length) {
+    if (process.env.ENVIRONMENT === "production" && process.env.FUNCTIONS_EMULATOR !== "true") {
+        admin.initializeApp();
+    } else {
+        const privateKey = process.env.ADMIN_PRIVATE_KEY;
+        admin.initializeApp({
+            credential: admin.credential.cert({
+                projectId: process.env.ADMIN_PROJECT_ID,
+                clientEmail: process.env.ADMIN_CLIENT_EMAIL,
+                privateKey: privateKey ? privateKey.replace(/\\n/g, '\n') : undefined,
+            }),
+            databaseURL: process.env.ADMIN_DATABASE_URL,
+        });
+    }
+}
+
+ModuleAlias.addAliases({
+    src: __dirname,
+});
+
+// Initialize the Firebase Client SDK for client-side auth operations
+const firebaseClientConfig = {
+    apiKey: process.env.CLIENT_API_KEY,
+    authDomain: process.env.CLIENT_AUTH_DOMAIN,
+    projectId: process.env.ADMIN_PROJECT_ID,
+};
+
+initializeClientApp(firebaseClientConfig);
+
+admin.firestore().settings({
+    ignoreUndefinedProperties: true,
+});
+
+const functions = process.env.ENVIRONMENT === "production" ? firebaseFunctions.region("us-central1") : firebaseFunctions.region("asia-southeast1");
+
+const appPath = process.env.ENVIRONMENT === "production" ? "src/prod/core/App" : "src/core/App";
+const App = require(appPath).default;
+App.boot();
+exports.api = functions.https.onRequest(App.getInstance());
