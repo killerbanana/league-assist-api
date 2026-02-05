@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { HttpStatusCode } from "src/core/enums/Http-status-code";
 import AuthService from "../../services/v1.0/auth_services";
+import { HttpError } from "src/core/exceptions/http_error";
 const jwt = require("jsonwebtoken");
 
 class UserController {
@@ -27,9 +28,18 @@ class UserController {
         },
       });
     } catch (error: any) {
+      if (error instanceof HttpError) {
+        return res.status(error.statusCode).json({
+          status: error.statusCode,
+          message: error.message,
+          data: null,
+        });
+      }
+      console.error("Error in UserController.login:", error);
       return res.status(HttpStatusCode.INTERNAL_SERVER_ERROR).json({
         status: HttpStatusCode.INTERNAL_SERVER_ERROR,
-        message: error,
+        message: "An error occurred during login.",
+        data: null,
       });
     }
   }
@@ -88,23 +98,13 @@ class UserController {
       });
     } catch (error: any) {
       console.error("Error in UserController.register:", error);
-
-      if (error.message.includes("Invalid role provided")) {
-        return res.status(HttpStatusCode.BAD_REQUEST).json({
-          status: HttpStatusCode.BAD_REQUEST,
+      if (error instanceof HttpError) {
+        return res.status(error.statusCode).json({
+          status: error.statusCode,
           message: error.message,
           data: null,
         });
       }
-
-      if (error.message.includes("is already in use")) {
-        return res.status(HttpStatusCode.CONFLICT).json({
-          status: HttpStatusCode.CONFLICT,
-          message: error.message,
-          data: null,
-        });
-      }
-
       return res.status(HttpStatusCode.INTERNAL_SERVER_ERROR).json({
         status: HttpStatusCode.INTERNAL_SERVER_ERROR,
         message: "An error occurred during registration.",

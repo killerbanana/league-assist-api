@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import { HttpStatusCode } from "src/core/enums/Http-status-code";
-import TournamentService from "../../services/v1.0/tournament_services";
+import TournamentService from "../../services/v1.0/league_services";
 import { Timestamp } from "firebase-admin/firestore";
 
 const parseToTimestamp = (input: string | Date): Timestamp => {
@@ -11,7 +11,7 @@ const parseToTimestamp = (input: string | Date): Timestamp => {
   return Timestamp.fromDate(date);
 };
 
-class TournamentController {
+class LeagueController {
   static async all(req: Request, res: Response) {
     try {
       const { sport, location, startDate, endDate } = req.query;
@@ -41,7 +41,7 @@ class TournamentController {
       return res.status(serviceResponse.status).json(serviceResponse);
       // highlight-end
     } catch (error: any) {
-      console.error("[TOURNAMENT_CONTROLLER_ERROR]", error);
+      console.error("[LEAGUE_CONTROLLER_ERROR]", error);
       return res.status(HttpStatusCode.INTERNAL_SERVER_ERROR).json({
         status: HttpStatusCode.INTERNAL_SERVER_ERROR,
         message: "An error occurred while fetching tournaments.",
@@ -87,7 +87,7 @@ class TournamentController {
     }
   }
 
-  static async createTournament(req: Request, res: Response) {
+  static async create(req: Request, res: Response) {
     try {
       const user = req.currentUser;
       if (!user) {
@@ -144,7 +144,7 @@ class TournamentController {
         data: { id: tournamentId },
       });
     } catch (error: any) {
-      console.error("[CREATE_TOURNAMENT_CONTROLLER] Error:", error.message);
+      console.error("[CREATE_LEAGUE_CONTROLLER] Error:", error.message);
 
       // Handle specific known errors, like invalid date format.
       if (error.message.includes("Invalid date format")) {
@@ -162,4 +162,4 @@ class TournamentController {
   }
 }
 
-export default TournamentController;
+export default LeagueController;

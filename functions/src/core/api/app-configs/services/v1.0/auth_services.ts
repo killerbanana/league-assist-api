@@ -60,7 +60,7 @@ class AuthService {
     const { email, password, displayName, roles } = data;
 
     if (!email || !password || !displayName) {
-      throw new Error("Email, password, and displayName are required.");
+      throw new BadRequestError("Email, password, and displayName are required.");
     }
 
     const assignableRoles: string[] = [
@@ -90,7 +90,7 @@ class AuthService {
         displayName,
       });
 
-      await admin.auth().setCustomUserClaims(userRecord.uid, { roles: roles });
+      await admin.auth().setCustomUserClaims(userRecord.uid, { roles: finalRoles });
 
       const db = admin.firestore();
       const userDocRef = db.collection("users").doc(userRecord.uid).withConverter(userModelConverter);
@@ -111,10 +111,10 @@ class AuthService {
     } catch (error: any) {
       console.error("Error registering user:", error.message);
       if (error.code === "auth/email-already-exists") {
-        throw new Error("The email address is already in use.");
+        throw new ConflictError("The email address is already in use by another account.");
       }
 
-      throw error;
+      throw new InternalServerError("An unexpected error occurred during registration.");
     }
   }
 
